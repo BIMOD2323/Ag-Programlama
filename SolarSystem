@@ -1,0 +1,109 @@
+
+import pygame
+import sys
+import math
+import requests
+import time
+import random
+
+# Initialize Pygame
+pygame.init()
+
+# Screen dimensions
+width, height = 8000, 8000
+screen = pygame.display.set_mode((width, height))
+
+# Colors and fonts
+background_color = (0, 0, 0)
+sun_color = (253, 184, 19)
+line_color = (255, 255, 255)
+text_color = (255, 255, 255)
+planet_colors = [(33, 150, 243), (156, 39, 176), (76, 175, 80), (255, 87, 34), (255, 235, 59), (233, 30, 99),
+                 (103, 58, 183), (0, 188, 212)]
+font = pygame.font.SysFont("arial", 12)
+large_font = pygame.font.SysFont("arial", 20)
+
+# Ethereum "Sun" settings
+sun_position = (width // 2, height // 2)
+sun_radius = 40
+
+# Placeholder for planets
+planets = []
+
+
+def fetch_crypto_data():
+    url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=chainlink,uniswap,aave,compound,maker,synthetix-network-token,yearn-finance,balancer&order=market_cap_desc&per_page=8&page=1&sparkline=false"
+    response = requests.get(url).json()
+
+    new_planets = []
+    for idx, altcoin in enumerate(response):
+        angle = random.uniform(0, 2 * math.pi)  # Rastgele bir başlangıç açısı seçildi
+        orbit_radius = random.randint(300, 400)  # Rastgele bir yörünge yarıçapı seçildi
+        size = 15
+        speed = random.uniform(0.05, 0.1)
+        x = sun_position[0] + math.cos(angle) * orbit_radius
+        y = sun_position[1] + math.sin(angle) * orbit_radius
+        name = altcoin['symbol'].upper()
+        name = get_altcoin_name(name)
+        color = random.choice(planet_colors)
+        new_planets.append((x, y, size, speed, name, orbit_radius, color))
+    return new_planets
+
+
+def get_altcoin_name(symbol):
+    altcoin_names = {
+        "LINK": "Chainlink (LINK)",
+        "UNI": "Uniswap (UNI)",
+        "AAVE": "Aave (AAVE)",
+        "COMP": "Compound (COMP)",
+        "MKR": "Maker (MKR)",
+        "SNX": "Synthetix Network Token (SNX)",
+        "YFI": "Yearn.finance (YFI)",
+        "BAL": "Balancer (BAL)"
+    }
+    return altcoin_names.get(symbol, symbol)
+
+
+def update_planets():
+    global planets
+    planets = fetch_crypto_data()
+
+
+update_planets()
+
+clock = pygame.time.Clock()
+update_interval = 300
+last_update = time.time()
+
+while True:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+
+    screen.fill(background_color)
+    pygame.draw.circle(screen, sun_color, sun_position, sun_radius)
+    sun_label = large_font.render("ETH", True, text_color)
+    screen.blit(sun_label,
+                (sun_position[0] - sun_label.get_width() // 2, sun_position[1] - sun_label.get_height() // 2))
+
+    for x, y, size, speed, name, orbit_radius, color in planets:
+        angle = (pygame.time.get_ticks() * speed / 1000) % (2 * math.pi)
+        x = sun_position[0] + math.cos(angle) * orbit_radius
+        y = sun_position[1] + math.sin(angle) * orbit_radius
+        # Her gezegenin boyutunu %50 oranında büyüt
+        size *= 1.5
+        pygame.draw.circle(screen, color, (int(x), int(y)), int(size))
+        text_surface = font.render(name, True, text_color)
+        screen.blit(text_surface, (int(x) - text_surface.get_width() // 2, int(y) + int(size)))
+
+        # Gezegen ile Ethereum arasındaki çizgiyi çiz
+        pygame.draw.line(screen, line_color, sun_position, (int(x), int(y)), 1)
+
+    pygame.display.flip()
+    clock.tick(60)
+
+    if time.time() - last_update > update_interval:
+        update_planets()
+        last_update = time.time()
+
